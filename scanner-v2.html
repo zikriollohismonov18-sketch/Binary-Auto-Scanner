@@ -1,0 +1,83 @@
+
+const FOREX_PAIRS = [
+  "OANDA:EUR_USD",
+  "OANDA:GBP_USD",
+  "OANDA:USD_JPY",
+  "OANDA:USD_CHF",
+  "OANDA:USD_CAD",
+  "OANDA:AUD_USD",
+  "OANDA:NZD_USD",
+  "OANDA:EUR_GBP",
+  "OANDA:EUR_JPY",
+  "OANDA:EUR_CHF",
+  "OANDA:EUR_AUD",
+  "OANDA:EUR_CAD",
+  "OANDA:GBP_JPY",
+  "OANDA:GBP_CHF",
+  "OANDA:GBP_AUD",
+  "OANDA:GBP_CAD",
+  "OANDA:AUD_JPY",
+  "OANDA:AUD_CAD",
+  "OANDA:AUD_NZD",
+  "OANDA:NZD_JPY",
+  "OANDA:NZD_CAD",
+  "OANDA:CAD_JPY",
+  "OANDA:CHF_JPY"
+];
+
+async function scanAllPairs() {
+  const key = $("apiKey").value.trim();
+
+  if (!key) {
+    setStatus("Аввал API Key ворид кунед.");
+    return;
+  }
+
+  if (busy) return;
+  busy = true;
+
+  let checked = 0;
+  let found = 0;
+
+  try {
+    for (const symbol of FOREX_PAIRS) {
+      if (!running) break;
+
+      try {
+        const candles = await fetchCandles(symbol, key);
+        const closes = candles.map(c => c.close);
+        const result = analyze(closes);
+
+        checked++;
+
+        if (result.direction !== "WAIT") {
+          found++;
+
+          addHistory({
+            time: Math.floor(Date.now() / 1000),
+            pair: symbol.replace("OANDA:", "")
+              .replace("_", "/"),
+            direction: result.direction,
+            expiry: Number($("expiry").value),
+            price: result.price
+          });
+
+          playAlert();
+        }
+      } catch (error) {
+        console.warn(symbol, error.message);
+      }
+
+      setStatus(
+        "Санҷида шуд: " + checked +
+        " | Сигналҳо: " + found
+      );
+
+      await new Promise(resolve =>
+        setTimeout(resolve, 1200)
+      );
+    }
+  } finally {
+    busy = false;
+  }
+}
