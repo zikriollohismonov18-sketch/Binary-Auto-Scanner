@@ -1,0 +1,394 @@
+
+ //@version=6
+indicator("Binary Auto Scanner V4.1 - S/R Confirmed",
+     overlay=true, dynamic_requests=true)
+
+// =======================================
+// SETTINGS
+// =======================================
+expiry = input.int(2, "Expiry (minutes)", options=[1, 2, 3])
+threshold = input.int(5, "Minimum filters (of 7)", minval=4, maxval=7)
+scanTF = input.timeframe("1", "Scan timeframe")
+touchATR = input.float(0.15, "S/R touch tolerance (ATR)", minval=0.01, maxval=1.0, step=0.05)
+showWait = input.bool(true, "Show WAIT pairs")
+enableAlerts = input.bool(true, "Enable alerts")
+
+// =======================================
+// FOREX PAIRS
+// =======================================
+var array<string> pairs = array.from(
+     "OANDA:EURUSD",
+     "OANDA:GBPUSD",
+     "OANDA:USDJPY",
+     "OANDA:USDCHF",
+     "OANDA:USDCAD",
+     "OANDA:AUDUSD",
+     "OANDA:NZDUSD",
+     "OANDA:EURGBP",
+     "OANDA:EURJPY",
+     "OANDA:EURCHF",
+     "OANDA:EURAUD",
+     "OANDA:EURCAD",
+     "OANDA:GBPJPY",
+     "OANDA:GBPCHF",
+     "OANDA:GBPAUD",
+     "OANDA:GBPCAD",
+     "OANDA:AUDJPY",
+     "OANDA:AUDCAD",
+     "OANDA:AUDNZD",
+     "OANDA:NZDJPY",
+     "OANDA:NZDCAD",
+     "OANDA:CADJPY",
+     "OANDA:CHFJPY"
+)
+
+// =======================================
+// ANALYSIS ON CLOSED CANDLES
+// =======================================
+f_analysis() =>
+    // Use only the previous completed candle.
+    c = close[1]
+    o = open[1]
+    h = high[1]
+    l = low[1]
+
+    prevO = open[2]
+    prevC = close[2]
+
+    // EMA
+    ema9 = ta.ema(close, 9)[1]
+    ema21 = ta.ema(close, 21)[1]
+    ema50 = ta.ema(close, 50)[1]
+
+    bullTrend = ema9 > ema21 and ema21 > ema50
+    bearTrend = ema9 < ema21 and ema21 < ema50
+
+    // RSI
+    r = ta.rsi(close, 14)[1]
+    bullRSI = r > 52 and r < 70
+    bearRSI = r < 48 and r > 30
+
+    // MACD
+    [macdLine, signalLine, hist] = ta.macd(close, 12, 26, 9)
+    bullMACD = hist[1] > 0
+    bearMACD = hist[1] < 0
+
+    // ATR
+    atrValue = ta.atr(14)[1]
+    atrRatio = atrValue / c
+    atrOK = not na(atrRatio) and atrRatio > 0.00004 and atrRatio < 0.008
+
+    // Historical Support/Resistance:
+    // Excludes signal candle and current forming candle.
+    support = ta.lowest(low[2], 20)
+    resistance = ta.highest(high[2], 20)
+
+    tolerance = atrValue * touchATR
+
+    // ===================================
+    // SUPPORT / RESISTANCE CONFIRMATION
+    // ===================================
+
+    // CALL: touches support, then closes above it.
+    supportBounce = not na(support) and
+         l <= support + tolerance and
+         c > support and
+         c > o
+
+    // CALL: breaks previous resistance
+    // and closes above it.
+    resistanceBreak = not na(resistance) and
+         prevC <= resistance and
+         c > resistance and
+         c > o
+
+    // PUT: touches resistance, closes below.
+    resistanceReject = not na(resistance) and
+         h >= resistance - tolerance and
+         c < resistance and
+         c < o
+
+    // PUT: breaks previous support.
+    supportBreak = not na(support) and
+         prevC >= support and
+         c < support and
+         c < o
+
+    bullSR = supportBounce or resistanceBreak
+    bearSR = resistanceReject or supportBreak
+
+    // ===================================
+    // BOLLINGER BANDS
+    // ===================================
+    basis = ta.sma(close, 20)[1]
+    dev = ta.stdev(close, 20)[1] * 2
+    upper = basis + dev
+    lower = basis - dev
+
+    bullBB = c > basis and c < upper
+    bearBB = c < basis and c > lower
+
+    // ===================================
+    // CANDLE PATTERNS
+    // ===================================
+    bullEngulf = prevC < prevO and c > o and
+         o <= prevC and c >= prevO
+
+    bearEngulf = prevC > prevO and c < o and
+         o >= prevC and c <= prevO
+
+    body = math.abs(c - o)
+    candleRange = math.max(h - l, syminfo.mintick)
+    upperWick = h - math.max(o, c)
+    lowerWick = math.min(o, c) - l
+
+    bullPin = lowerWick >= body * 2 and
+         upperWick <= candleRange * 0.25 and
+         c > l + candleRange * 0.55
+
+    bearPin = upperWick >= body * 2 and
+         lowerWick <= candleRange * 0.25 and
+         c < l + candleRange * 0.45
+
+    bullCandle = bullEngulf or bullPin
+    bearCandle = bearEngulf or bearPin
+
+    // ===================================
+    // FILTER SCORES
+    // ===================================
+    up = (
+         (bullTrend ? 1 : 0) +
+         (bullRSI ? 1 : 0) +
+         (bullMACD ? 1 : 0) +
+         (bullSR ? 1 : 0) +
+         (bullBB ? 1 : 0) +
+         (bullCandle ? 1 : 0) +
+         (atrOK ? 1 : 0)
+         )
+
+    down = (
+         (bearTrend ? 1 : 0) +
+         (bearRSI ? 1 : 0) +
+         (bearMACD ? 1 : 0) +
+         (bearSR ? 1 : 0) +
+         (bearBB ? 1 : 0) +
+         (bearCandle ? 1 : 0) +
+         (atrOK ? 1 : 0)
+         )
+
+    // S/R confirmation is mandatory.
+    direction = atrOK and bullSR and
+         up >= threshold and up > down ? 1 :
+         atrOK and bearSR and
+         down >= threshold and down > up ? -1 : 0
+
+    // Reason code
+    // 1 Support bounce
+    // 2 Resistance breakout
+    // 3 Resistance rejection
+    // 4 Support breakdown
+    reason = direction == 1 ?
+         (supportBounce ? 1 : 2) :
+         direction == -1 ?
+         (resistanceReject ? 3 : 4) : 0
+
+    // Matched filter bit flags
+    bullBits = (
+         (bullTrend ? 1 : 0) +
+         (bullRSI ? 2 : 0) +
+         (bullMACD ? 4 : 0) +
+         (bullSR ? 8 : 0) +
+         (bullBB ? 16 : 0) +
+         (bullCandle ? 32 : 0) +
+         (atrOK ? 64 : 0)
+         )
+
+    bearBits = (
+         (bearTrend ? 1 : 0) +
+         (bearRSI ? 2 : 0) +
+         (bearMACD ? 4 : 0) +
+         (bearSR ? 8 : 0) +
+         (bearBB ? 16 : 0) +
+         (bearCandle ? 32 : 0) +
+         (atrOK ? 64 : 0)
+         )
+
+    bits = direction == 1 ? bullBits :
+         direction == -1 ? bearBits : 0
+
+    [direction, up, down, r, c, atrValue,
+         bits, reason, time[1], support, resistance]
+
+// =======================================
+// HELPERS
+// =======================================
+f_hasBit(int bits, int bit) =>
+    int(math.floor(bits / bit)) % 2 == 1
+
+f_filters(int bits) =>
+    string result = ""
+
+    if f_hasBit(bits, 1)
+        result += "EMA "
+
+    if f_hasBit(bits, 2)
+        result += "RSI "
+
+    if f_hasBit(bits, 4)
+        result += "MACD "
+
+    if f_hasBit(bits, 8)
+        result += "S/R "
+
+    if f_hasBit(bits, 16)
+        result += "BB "
+
+    if f_hasBit(bits, 32)
+        result += "Candle "
+
+    if f_hasBit(bits, 64)
+        result += "ATR "
+
+    result == "" ? "-" : result
+
+f_reason(int code) =>
+    switch code
+        1 => "Support Bounce"
+        2 => "Resistance Break"
+        3 => "Resistance Reject"
+        4 => "Support Break"
+        => "No confirmation"
+
+// =======================================
+// DASHBOARD
+// =======================================
+var table dashboard = table.new(
+     position.top_right, 7, 25,
+     border_width=1)
+
+if barstate.islast
+    headerBG = color.rgb(25, 43, 65)
+
+    table.cell(dashboard, 0, 0, "PAIR",
+         bgcolor=headerBG, text_color=color.white)
+
+    table.cell(dashboard, 1, 0, "SIGNAL",
+         bgcolor=headerBG, text_color=color.white)
+
+    table.cell(dashboard, 2, 0, "UP",
+         bgcolor=headerBG, text_color=color.white)
+
+    table.cell(dashboard, 3, 0, "DOWN",
+         bgcolor=headerBG, text_color=color.white)
+
+    table.cell(dashboard, 4, 0, "RSI",
+         bgcolor=headerBG, text_color=color.white)
+
+    table.cell(dashboard, 5, 0, "MIN",
+         bgcolor=headerBG, text_color=color.white)
+
+    table.cell(dashboard, 6, 0, "CONFIRMATION",
+         bgcolor=headerBG, text_color=color.white)
+
+// =======================================
+// SCAN 23 PAIRS
+// =======================================
+for i = 0 to array.size(pairs) - 1
+    symbol = array.get(pairs, i)
+
+    [dir, up, down, r, price, atrValue,
+         bits, reasonCode, signalTime,
+         support, resistance] =
+         request.security(
+             symbol,
+             scanTF,
+             f_analysis(),
+             gaps=barmerge.gaps_off,
+             lookahead=barmerge.lookahead_off,
+             ignore_invalid_symbol=true,
+             calc_bars_count=160
+         )
+
+    isCall = dir == 1
+    isPut = dir == -1
+    isWait = not isCall and not isPut
+
+    signalText = isCall ? "CALL" :
+         isPut ? "PUT" : "WAIT"
+
+    signalColor = isCall ? color.lime :
+         isPut ? color.red : color.gray
+
+    pairName = str.replace(symbol, "OANDA:", "")
+    reasonText = na(reasonCode) ?
+         "No data" : f_reason(reasonCode)
+
+    row = i + 1
+
+    if barstate.islast
+        visible = showWait or not isWait
+        bg = visible ? color.rgb(17, 28, 43) :
+             color.rgb(12, 18, 27)
+
+        table.cell(dashboard, 0, row,
+             pairName, bgcolor=bg,
+             text_color=color.white)
+
+        table.cell(dashboard, 1, row,
+             visible ? signalText : "-",
+             bgcolor=bg,
+             text_color=signalColor)
+
+        table.cell(dashboard, 2, row,
+             str.tostring(up),
+             bgcolor=bg, text_color=color.white)
+
+        table.cell(dashboard, 3, row,
+             str.tostring(down),
+             bgcolor=bg, text_color=color.white)
+
+        table.cell(dashboard, 4, row,
+             str.tostring(r, "#.0"),
+             bgcolor=bg, text_color=color.white)
+
+        table.cell(dashboard, 5, row,
+             str.tostring(expiry),
+             bgcolor=bg, text_color=color.white)
+
+        table.cell(dashboard, 6, row,
+             visible ? reasonText : "-",
+             bgcolor=bg, text_color=color.white)
+
+    // ===================================
+    // ALERT: NEW CONFIRMED SIGNAL ONLY
+    // ===================================
+    newSignal = not na(signalTime) and
+         signalTime != signalTime[1] and
+         (isCall or isPut)
+
+    if enableAlerts and barstate.isconfirmed and newSignal
+        message = (
+             "Binary Scanner V4.1 | " +
+             pairName + " | " +
+             signalText + " | " +
+             str.tostring(expiry) + " min | " +
+             "Price: " + str.tostring(price) +
+             " | UP: " + str.tostring(up) +
+             " | DOWN: " + str.tostring(down) +
+             " | S/R: " + reasonText +
+             " | Filters: " + f_filters(bits)
+             )
+
+        alert(message, alert.freq_all)
+
+// =======================================
+// CURRENT CHART VISUALS
+// =======================================
+plot(ta.ema(close, 9),
+     "EMA 9", color=color.lime)
+
+plot(ta.ema(close, 21),
+     "EMA 21", color=color.orange)
+
+plot(ta.ema(close, 50),
+     "EMA 50", color=color.blue)
