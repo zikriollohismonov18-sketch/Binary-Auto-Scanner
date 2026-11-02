@@ -1,0 +1,663 @@
+
+<!DOCTYPE html>
+<html lang="tg">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Binary Auto Scanner V3</title>
+<style>
+:root{
+ --bg:#080e18;--panel:#121d2d;--panel2:#1b2a40;
+ --line:#304158;--text:#edf5ff;--muted:#9cb0c5;
+ --green:#20dfa0;--red:#ff687d;--yellow:#ffd16c;
+ --blue:#80b8ff
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);
+ font-family:Arial,sans-serif}
+header{padding:22px 14px;text-align:center;background:#101b2b;
+ border-bottom:1px solid var(--line)}
+h1{font-size:24px;margin:0 0 8px}
+header p{margin:0;color:var(--muted);font-size:13px}
+main{max-width:1150px;margin:auto;padding:15px}
+.panel{background:var(--panel);border:1px solid var(--line);
+ border-radius:14px;padding:17px;margin-bottom:15px}
+h2{font-size:18px;margin:0 0 15px}
+label{display:block;color:var(--muted);font-size:13px;
+ margin:12px 0 7px}
+input,select,button{font:inherit;padding:12px;border-radius:9px}
+input,select{width:100%;background:var(--panel2);
+ color:white;border:1px solid var(--line)}
+button{border:0;background:var(--green);color:#06151c;
+ font-weight:bold;cursor:pointer}
+button:disabled{opacity:.5;cursor:not-allowed}
+.secondary{background:#344961;color:white}
+.danger{background:var(--red)}
+.buttons{display:flex;flex-wrap:wrap;gap:9px;margin-top:15px}
+.buttons button{flex:1;min-width:125px}
+.row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.metric{background:var(--panel2);padding:15px;
+ border-radius:11px;text-align:center}
+.metric small{display:block;color:var(--muted);margin-bottom:9px}
+.metric strong{font-size:20px}
+.status{padding:13px;background:#20334b;border-radius:10px;
+ line-height:1.5}
+.green{color:var(--green)}.red{color:var(--red)}
+.yellow{color:var(--yellow)}.blue{color:var(--blue)}
+.wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:11px 8px;border-bottom:1px solid var(--line);
+ text-align:left}
+th{color:var(--muted)}
+.signal-card{background:var(--panel2);border:1px solid var(--line);
+ border-radius:13px;padding:16px;margin-bottom:12px}
+.signal-head{display:flex;justify-content:space-between;
+ align-items:center;gap:12px;flex-wrap:wrap}
+.direction{font-size:25px;font-weight:bold}
+.reason{padding:8px 10px;background:#243750;
+ border-radius:8px;margin:6px 0;font-size:13px}
+.details{display:grid;grid-template-columns:repeat(3,1fr);
+ gap:9px;margin:12px 0}
+.detail{background:#152236;border-radius:9px;
+ padding:11px;font-size:13px}
+.detail small{display:block;color:var(--muted);
+ margin-bottom:6px}
+.note{font-size:12px;color:var(--muted);line-height:1.7}
+@media(max-width:750px){
+ .row{grid-template-columns:1fr}
+ .grid{grid-template-columns:repeat(2,1fr)}
+ .details{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+<header>
+<h1>📡 Binary Auto Scanner V3</h1>
+<p>23 Forex Pairs · CALL / PUT · Strategy Reasons</p>
+</header>
+
+<main>
+<section class="panel">
+<h2>⚙️ Танзимот</h2>
+<label>Finnhub API Key</label>
+<input id="apiKey" type="password" autocomplete="off"
+ placeholder="API Key-ро ворид кунед">
+
+<div class="row">
+<div>
+<label>Муҳлати сигнал</label>
+<select id="expiry">
+<option value="1">1 дақиқа</option>
+<option value="2" selected>2 дақиқа</option>
+<option value="3">3 дақиқа</option>
+</select>
+</div>
+<div>
+<label>Ҳадди стратегия</label>
+<select id="threshold">
+<option value="4">4 аз 7</option>
+<option value="5" selected>5 аз 7</option>
+<option value="6">6 аз 7</option>
+<option value="7">7 аз 7</option>
+</select>
+</div>
+<div>
+<label>Танаффуси байни давраҳо</label>
+<select id="interval">
+<option value="60000">60 сония</option>
+<option value="120000" selected>120 сония</option>
+<option value="180000">180 сония</option>
+</select>
+</div>
+</div>
+
+<div class="buttons">
+<button id="startBtn" onclick="startScanner()">▶ Auto Scan</button>
+<button class="danger" onclick="stopScanner()">■ Ист</button>
+<button class="secondary" onclick="scanAllPairs()">🔍 Як давра</button>
+</div>
+</section>
+
+<section class="panel">
+<h2>📊 Ҳолати сканер</h2>
+<div id="status" class="status">Сканер фаъол нест.</div>
+<div class="grid" style="margin-top:12px">
+<div class="metric"><small>Ҳолат</small><strong id="state">OFF</strong></div>
+<div class="metric"><small>Санҷида шуд</small><strong id="checked">0</strong></div>
+<div class="metric"><small>Сигналҳои нав</small><strong id="found">0</strong></div>
+<div class="metric"><small>Ҳамаи ҷуфтҳо</small><strong id="total">23</strong></div>
+</div>
+</section>
+
+<section class="panel">
+<h2>🎯 Сигналҳо ва сабабҳои онҳо</h2>
+<div id="signalCards">
+<p class="note">Ҳоло сигнал нест.</p>
+</div>
+</section>
+
+<section class="panel">
+<h2>📋 Натиҷаи ҳамаи ҷуфтҳо</h2>
+<div class="wrap">
+<table>
+<thead>
+<tr>
+<th>Ҷуфт</th><th>Самт</th><th>CALL</th>
+<th>PUT</th><th>RSI</th><th>Ҳолат</th>
+</tr>
+</thead>
+<tbody id="results"></tbody>
+</table>
+</div>
+</section>
+
+<section class="panel">
+<p class="note">
+⚠️ Ин сканер барои таҳлил ва озмоиш аст.
+Шумораи филтрҳои мувофиқ эҳтимоли бурдро
+нишон намедиҳад. Нархи ҳадаф аз ATR ҳисоб
+мешавад ва кафолати ҳаракати нарх нест.
+Маълумоти брокери бинарка метавонад аз
+маълумоти Finnhub фарқ кунад.
+</p>
+</section>
+</main>
+
+<script>
+"use strict";
+
+const $=id=>document.getElementById(id);
+
+const PAIRS=[
+"OANDA:EUR_USD","OANDA:GBP_USD","OANDA:USD_JPY",
+"OANDA:USD_CHF","OANDA:USD_CAD","OANDA:AUD_USD",
+"OANDA:NZD_USD","OANDA:EUR_GBP","OANDA:EUR_JPY",
+"OANDA:EUR_CHF","OANDA:EUR_AUD","OANDA:EUR_CAD",
+"OANDA:GBP_JPY","OANDA:GBP_CHF","OANDA:GBP_AUD",
+"OANDA:GBP_CAD","OANDA:AUD_JPY","OANDA:AUD_CAD",
+"OANDA:AUD_NZD","OANDA:NZD_JPY","OANDA:NZD_CAD",
+"OANDA:CAD_JPY","OANDA:CHF_JPY"
+];
+
+const FILTERS=[
+"EMA 9/21/50 — тренд мувофиқ аст",
+"RSI 14 — импулс мувофиқ аст",
+"MACD — импулс тасдиқ шуд",
+"Support / Resistance — мавқеи нарх мувофиқ аст",
+"Bollinger Bands — мавқеи нарх мувофиқ аст",
+"Candlestick — шакли свеча тасдиқ мекунад",
+"ATR — ҳаракати бозор кофӣ аст"
+];
+
+let running=false;
+let busy=false;
+let timer=null;
+let generation=0;
+let checked=0;
+let found=0;
+const emitted=new Set();
+
+$("total").textContent=PAIRS.length;
+
+function status(t){$("status").textContent=t}
+function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
+function nameOf(s){return s.replace("OANDA:","").replace("_","/")}
+function fmt(n,d=5){return Number.isFinite(n)?n.toFixed(d):"—"}
+
+function stats(){
+ $("state").textContent=running?"ON":"OFF";
+ $("state").className=running?"green":"red";
+ $("checked").textContent=checked;
+ $("found").textContent=found;
+}
+
+function ema(data,p){
+ const out=Array(data.length).fill(null);
+ if(data.length<p)return out;
+ let v=data.slice(0,p).reduce((a,b)=>a+b,0)/p;
+ out[p-1]=v;
+ const k=2/(p+1);
+ for(let i=p;i<data.length;i++){
+  v=data[i]*k+v*(1-k);
+  out[i]=v;
+ }
+ return out;
+}
+
+function rsi(data,p=14){
+ if(data.length<=p)return null;
+ let g=0,l=0;
+ for(let i=1;i<=p;i++){
+  const d=data[i]-data[i-1];
+  g+=Math.max(d,0);
+  l+=Math.max(-d,0);
+ }
+ g/=p;l/=p;
+ for(let i=p+1;i<data.length;i++){
+  const d=data[i]-data[i-1];
+  g=(g*(p-1)+Math.max(d,0))/p;
+  l=(l*(p-1)+Math.max(-d,0))/p;
+ }
+ if(g===0&&l===0)return 50;
+ if(l===0)return 100;
+ return 100-100/(1+g/l);
+}
+
+function macd(data){
+ const a=ema(data,12),b=ema(data,26);
+ const line=[];
+ for(let i=25;i<data.length;i++)line.push(a[i]-b[i]);
+ const signal=ema(line,9);
+ return line.at(-1)-signal.at(-1);
+}
+
+function bollinger(data,p=20){
+ const a=data.slice(-p);
+ const mid=a.reduce((x,y)=>x+y,0)/p;
+ const sd=Math.sqrt(
+  a.reduce((x,y)=>x+(y-mid)**2,0)/p
+ );
+ return {mid,upper:mid+2*sd,lower:mid-2*sd};
+}
+
+function atr(c,p=14){
+ const tr=[];
+ for(let i=1;i<c.length;i++){
+  tr.push(Math.max(
+   c[i].high-c[i].low,
+   Math.abs(c[i].high-c[i-1].close),
+   Math.abs(c[i].low-c[i-1].close)
+  ));
+ }
+ if(tr.length<p)return null;
+ let a=tr.slice(0,p).reduce((x,y)=>x+y,0)/p;
+ for(let i=p;i<tr.length;i++){
+  a=(a*(p-1)+tr[i])/p;
+ }
+ return a;
+}
+
+function candlePattern(c){
+ const a=c.at(-2),b=c.at(-1);
+ const body=Math.abs(b.close-b.open);
+ const range=Math.max(b.high-b.low,1e-10);
+ const upper=b.high-Math.max(b.open,b.close);
+ const lower=Math.min(b.open,b.close)-b.low;
+
+ const bullEngulf=a.close<a.open &&
+  b.close>b.open &&
+  b.open<=a.close &&
+  b.close>=a.open;
+
+ const bearEngulf=a.close>a.open &&
+  b.close<b.open &&
+  b.open>=a.close &&
+  b.close<=a.open;
+
+ const bullPin=lower>=body*2 &&
+  upper<=range*.25 &&
+  b.close>b.low+range*.55;
+
+ const bearPin=upper>=body*2 &&
+  lower<=range*.25 &&
+  b.close<b.low+range*.45;
+
+ return {
+  bull:bullEngulf||bullPin,
+  bear:bearEngulf||bearPin
+ };
+}
+
+function analyze(c){
+ if(c.length<65)throw Error("Свечаҳо каманд");
+
+ const close=c.map(x=>x.close);
+ const i=close.length-1;
+ const e9=ema(close,9)[i];
+ const e21=ema(close,21)[i];
+ const e50=ema(close,50)[i];
+ const R=rsi(close);
+ const M=macd(close);
+ const B=bollinger(close);
+ const A=atr(c);
+ const P=candlePattern(c);
+
+ const price=close[i];
+ const recent=c.slice(-21,-1);
+ const support=Math.min(...recent.map(x=>x.low));
+ const resistance=Math.max(...recent.map(x=>x.high));
+ const width=Math.max(resistance-support,1e-10);
+ const atrRatio=A/price;
+
+ const volatilityOK=atrRatio>.00004 &&
+                    atrRatio<.008;
+
+ const bull=[
+  e9>e21&&e21>e50,
+  R>52&&R<70,
+  M>0,
+  price>support+width*.35 &&
+   price<resistance+width*.85,
+  price>B.mid&&price<B.upper,
+  P.bull,
+  volatilityOK
+ ];
+
+ const bear=[
+  e9<e21&&e21<e50,
+  R<48&&R>30,
+  M<0,
+  price<resistance-width*.35 &&
+   price>support+width*.15,
+  price<B.mid&&price>B.lower,
+  P.bear,
+  volatilityOK
+ ];
+
+ const up=bull.filter(Boolean).length;
+ const down=bear.filter(Boolean).length;
+ const threshold=Number($("threshold").value);
+
+ let direction="WAIT";
+ let matched=[];
+
+ if(volatilityOK&&up>=threshold&&up>down){
+  direction="CALL";
+  matched=FILTERS.filter((_,i)=>bull[i]);
+ }else if(volatilityOK&&down>=threshold&&down>up){
+  direction="PUT";
+  matched=FILTERS.filter((_,i)=>bear[i]);
+ }
+
+ // Ҳадафи тахминии ҳаракат:
+ // ATR ба решаи муҳлат зарб мешавад.
+ const expiry=Number($("expiry").value);
+ const distance=A*.5*Math.sqrt(expiry);
+ const target=direction==="CALL"
+  ?price+distance
+  :direction==="PUT"
+  ?price-distance
+  :null;
+
+ return {
+  direction,up,down,matched,
+  rsi:R,price,atr:A,target,
+  candleTime:c[i].time
+ };
+}
+
+async function fetchCandles(symbol,key){
+ const now=Math.floor(Date.now()/1000);
+ const params=new URLSearchParams({
+  symbol,
+  resolution:"1",
+  from:String(now-14400),
+  to:String(now),
+  token:key
+ });
+
+ const response=await fetch(
+  "https://finnhub.io/api/v1/forex/candle?"+params
+ );
+
+ if(!response.ok){
+  if(response.status===429)
+   throw Error("Лимити API");
+  if(response.status===401||response.status===403)
+   throw Error("Дастрасии API нест");
+  throw Error("HTTP "+response.status);
+ }
+
+ const d=await response.json();
+
+ if(d.s!=="ok"||!Array.isArray(d.t)||
+ !Array.isArray(d.c)||!Array.isArray(d.o)||
+ !Array.isArray(d.h)||!Array.isArray(d.l)){
+  throw Error("Маълумоти Forex дастрас нест");
+ }
+
+ const minute=Math.floor(Date.now()/60000)*60;
+ const c=d.t.map((t,i)=>({
+  time:t,
+  open:Number(d.o[i]),
+  high:Number(d.h[i]),
+  low:Number(d.l[i]),
+  close:Number(d.c[i])
+ })).filter(x=>
+  x.time<minute &&
+  [x.open,x.high,x.low,x.close].every(Number.isFinite)
+ );
+
+ if(c.length<65)throw Error("Свечаҳо каманд");
+ if(now-c.at(-1).time>180)
+  throw Error("Маълумот кӯҳна аст");
+
+ return c;
+}
+
+function cell(tr,value){
+ const td=document.createElement("td");
+ td.textContent=String(value);
+ tr.appendChild(td);
+ return td;
+}
+
+function showResult(symbol,result,error){
+ const tr=document.createElement("tr");
+ cell(tr,nameOf(symbol));
+
+ const dir=cell(tr,error?"—":result.direction);
+ if(!error){
+  dir.className=result.direction==="CALL"
+   ?"green":result.direction==="PUT"?"red":"yellow";
+ }
+
+ cell(tr,error?"—":result.up+"/7");
+ cell(tr,error?"—":result.down+"/7");
+ cell(tr,error?"—":fmt(result.rsi,1));
+ cell(tr,error||"OK");
+ $("results").appendChild(tr);
+}
+
+function detail(parent,label,value){
+ const div=document.createElement("div");
+ div.className="detail";
+
+ const small=document.createElement("small");
+ small.textContent=label;
+
+ const strong=document.createElement("strong");
+ strong.textContent=value;
+
+ div.append(small,strong);
+ parent.appendChild(div);
+}
+
+function addSignalCard(symbol,r){
+ const expiry=Number($("expiry").value);
+ const key=[
+  symbol,r.candleTime,expiry,r.direction
+ ].join(":");
+
+ if(emitted.has(key))return false;
+ emitted.add(key);
+ if(emitted.size>2000)emitted.clear();
+
+ const holder=$("signalCards");
+ const empty=holder.querySelector(".note");
+ if(empty)empty.remove();
+
+ const card=document.createElement("article");
+ card.className="signal-card";
+
+ const head=document.createElement("div");
+ head.className="signal-head";
+
+ const pair=document.createElement("h3");
+ pair.textContent=nameOf(symbol);
+
+ const direction=document.createElement("div");
+ direction.className="direction "+
+  (r.direction==="CALL"?"green":"red");
+ direction.textContent=
+  (r.direction==="CALL"?"↑ ":"↓ ")+r.direction;
+
+ head.append(pair,direction);
+ card.appendChild(head);
+
+ const details=document.createElement("div");
+ details.className="details";
+
+ detail(details,"Муҳлат",expiry+" дақиқа");
+ detail(details,"Нархи свеча",fmt(r.price));
+ detail(details,"Ҳадафи тахминӣ",fmt(r.target));
+ detail(details,"Шартҳои мувофиқ",
+  (r.direction==="CALL"?r.up:r.down)+"/7");
+ detail(details,"RSI",fmt(r.rsi,2));
+ detail(details,"ATR",fmt(r.atr,6));
+
+ card.appendChild(details);
+
+ const heading=document.createElement("strong");
+ heading.textContent="Сабабҳои сигнал:";
+ card.appendChild(heading);
+
+ for(const reason of r.matched){
+  const p=document.createElement("div");
+  p.className="reason";
+  p.textContent="✓ "+reason;
+  card.appendChild(p);
+ }
+
+ const time=document.createElement("p");
+ time.className="note";
+ time.textContent="Вақти свеча: "+
+  new Date(r.candleTime*1000).toLocaleString();
+ card.appendChild(time);
+
+ holder.prepend(card);
+ while(holder.children.length>50)
+  holder.lastElementChild.remove();
+
+ found++;
+ stats();
+ alertSound();
+ return true;
+}
+
+function alertSound(){
+ try{
+  const AC=window.AudioContext||
+   window.webkitAudioContext;
+  if(!AC)return;
+  const ctx=new AC();
+  const osc=ctx.createOscillator();
+  const gain=ctx.createGain();
+  osc.frequency.value=880;
+  gain.gain.value=.1;
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start();
+  osc.stop(ctx.currentTime+.25);
+  osc.onended=()=>ctx.close();
+ }catch(e){}
+}
+
+async function scanAllPairs(){
+ if(busy)return;
+
+ const key=$("apiKey").value.trim();
+ if(!key){
+  status("Аввал API Key ворид кунед.");
+  return;
+ }
+
+ busy=true;
+ const run=generation;
+ checked=0;
+ let errors=0;
+ let hits=0;
+
+ $("startBtn").disabled=true;
+ $("results").replaceChildren();
+
+ try{
+  for(const symbol of PAIRS){
+   if(run!==generation)break;
+
+   try{
+    status("Санҷиш: "+nameOf(symbol)+
+     " ("+(checked+1)+"/"+PAIRS.length+")");
+
+    const candles=await fetchCandles(symbol,key);
+    if(run!==generation)break;
+
+    const r=analyze(candles);
+    showResult(symbol,r,null);
+
+    if(r.direction!=="WAIT"){
+     if(addSignalCard(symbol,r))hits++;
+    }
+   }catch(e){
+    errors++;
+    showResult(symbol,null,e.message);
+   }
+
+   checked++;
+   stats();
+
+   if(run!==generation)break;
+   await sleep(1200);
+  }
+
+  if(run===generation){
+   status("Давра анҷом ёфт. Санҷида шуд: "+
+    checked+" | Сигналҳои нав: "+hits+
+    " | Хатогиҳо: "+errors);
+  }
+ }finally{
+  busy=false;
+  $("startBtn").disabled=false;
+ }
+}
+
+async function loop(){
+ if(!running)return;
+ await scanAllPairs();
+
+ if(running){
+  timer=setTimeout(loop,Number($("interval").value));
+ }
+}
+
+function startScanner(){
+ if(running)return;
+ if(busy){
+  status("Аввал давраи ҷориро анҷом диҳед.");
+  return;
+ }
+ if(!$("apiKey").value.trim()){
+  status("Аввал API Key ворид кунед.");
+  return;
+ }
+
+ running=true;
+ generation++;
+ stats();
+ loop();
+}
+
+function stopScanner(){
+ running=false;
+ generation++;
+ clearTimeout(timer);
+ timer=null;
+ stats();
+ status("Сканер боздошта шуд.");
+}
+
+stats();
+</script>
+</body>
+</html>
