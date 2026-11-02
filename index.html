@@ -1,0 +1,788 @@
+# 
+<!DOCTYPE html>
+<html lang="tg">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Binary Auto Scanner V1</title>
+<style>
+:root {
+  --bg:#080d17;
+  --card:#121c2b;
+  --card2:#19263a;
+  --border:#2a3b52;
+  --text:#edf4ff;
+  --muted:#91a5bd;
+  --green:#20df98;
+  --red:#ff6579;
+  --yellow:#ffce65;
+  --blue:#65a8ff;
+}
+* { box-sizing:border-box; }
+body {
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+  font-family:Arial,sans-serif;
+}
+header {
+  padding:22px 15px;
+  background:#101b2a;
+  border-bottom:1px solid var(--border);
+  text-align:center;
+}
+header h1 {
+  margin:0 0 8px;
+  font-size:25px;
+}
+header p {
+  color:var(--muted);
+  margin:0;
+  font-size:13px;
+}
+main {
+  max-width:1100px;
+  margin:auto;
+  padding:16px;
+}
+.panel {
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:15px;
+  padding:17px;
+  margin-bottom:16px;
+}
+h2 { margin:0 0 16px; font-size:18px; }
+label {
+  display:block;
+  margin:10px 0 7px;
+  color:var(--muted);
+  font-size:13px;
+}
+input,select,button {
+  font:inherit;
+  border-radius:9px;
+  padding:12px;
+}
+input,select {
+  width:100%;
+  color:white;
+  background:var(--card2);
+  border:1px solid var(--border);
+}
+button {
+  border:0;
+  cursor:pointer;
+  color:#06121b;
+  background:var(--green);
+  font-weight:bold;
+}
+button:disabled {
+  opacity:.45;
+  cursor:not-allowed;
+}
+button.secondary {
+  background:#293b52;
+  color:white;
+}
+button.danger {
+  background:var(--red);
+}
+.buttons {
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  margin-top:16px;
+}
+.buttons button { flex:1; min-width:125px; }
+.grid {
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:12px;
+}
+.metric {
+  background:var(--card2);
+  border-radius:12px;
+  padding:15px;
+  text-align:center;
+}
+.metric small {
+  color:var(--muted);
+  display:block;
+  margin-bottom:9px;
+}
+.metric strong { font-size:21px; }
+.green { color:var(--green); }
+.red { color:var(--red); }
+.yellow { color:var(--yellow); }
+.blue { color:var(--blue); }
+.status {
+  padding:12px;
+  border-radius:10px;
+  background:#203049;
+  color:var(--muted);
+  margin-bottom:15px;
+}
+.signal {
+  padding:18px;
+  text-align:center;
+  background:var(--card2);
+  border-radius:14px;
+}
+.signal .direction {
+  font-size:36px;
+  font-weight:800;
+  margin:12px 0;
+}
+.signal p {
+  color:var(--muted);
+  font-size:13px;
+}
+table {
+  width:100%;
+  border-collapse:collapse;
+  font-size:13px;
+}
+th,td {
+  padding:12px 8px;
+  text-align:left;
+  border-bottom:1px solid var(--border);
+}
+th { color:var(--muted); }
+.tablewrap { overflow-x:auto; }
+.tag {
+  display:inline-block;
+  padding:5px 9px;
+  border-radius:7px;
+  background:#263950;
+}
+.note {
+  font-size:12px;
+  color:var(--muted);
+  line-height:1.6;
+}
+@media(max-width:650px) {
+  .grid { grid-template-columns:1fr; }
+  header h1 { font-size:21px; }
+  .panel { padding:13px; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>📊 Binary Auto Scanner V1</h1>
+  <p>Forex · Auto Scan · 1M / 2M / 3M</p>
+</header>
+
+<main>
+
+<section class="panel">
+  <h2>⚙️ Танзимоти сканер</h2>
+
+  <label>Finnhub API Key</label>
+  <input id="apiKey" type="password"
+    placeholder="API Key-ро ворид кунед"
+    autocomplete="off">
+
+  <label>Ҷуфти асъор</label>
+  <select id="pair">
+    <option value="OANDA:EUR_USD">EUR/USD</option>
+    <option value="OANDA:GBP_USD">GBP/USD</option>
+    <option value="OANDA:USD_JPY">USD/JPY</option>
+    <option value="OANDA:AUD_USD">AUD/USD</option>
+    <option value="OANDA:USD_CAD">USD/CAD</option>
+    <option value="OANDA:EUR_GBP">EUR/GBP</option>
+    <option value="OANDA:EUR_JPY">EUR/JPY</option>
+  </select>
+
+  <label>Муҳлати сигнал</label>
+  <select id="expiry">
+    <option value="1">1 дақиқа</option>
+    <option value="2" selected>2 дақиқа</option>
+    <option value="3">3 дақиқа</option>
+  </select>
+
+  <label>Фосилаи скан</label>
+  <select id="interval">
+    <option value="30000">30 сония</option>
+    <option value="60000">60 сония</option>
+    <option value="120000">120 сония</option>
+  </select>
+
+  <div class="buttons">
+    <button id="startBtn" onclick="startScanner()">
+      ▶ Оғози Auto Scan
+    </button>
+    <button class="danger" onclick="stopScanner()">
+      ■ Ист
+    </button>
+    <button class="secondary" onclick="scanOnce()">
+      🔍 Як бор санҷ
+    </button>
+  </div>
+</section>
+
+<section class="panel">
+  <h2>📡 Ҳолати сканер</h2>
+  <div id="status" class="status">
+    Сканер ҳоло фаъол нест.
+  </div>
+  <div class="grid">
+    <div class="metric">
+      <small>Ҳолат</small>
+      <strong id="scannerState">OFF</strong>
+    </div>
+    <div class="metric">
+      <small>Сканҳои иҷрошуда</small>
+      <strong id="scanCount">0</strong>
+    </div>
+    <div class="metric">
+      <small>Сигналҳо</small>
+      <strong id="signalCount">0</strong>
+    </div>
+  </div>
+</section>
+
+<section class="panel">
+  <h2>🎯 Сигнали охирин</h2>
+  <div class="signal">
+    <div id="signalPair">EUR/USD</div>
+    <div id="direction" class="direction yellow">WAIT</div>
+    <div id="signalInfo">
+      Интизори маълумоти бозор...
+    </div>
+    <p id="signalTime">—</p>
+  </div>
+</section>
+
+<section class="panel">
+  <h2>📈 Нишондиҳандаҳо</h2>
+  <div class="grid">
+    <div class="metric">
+      <small>RSI (14)</small>
+      <strong id="rsiValue">—</strong>
+    </div>
+    <div class="metric">
+      <small>EMA 9 / EMA 21</small>
+      <strong id="emaValue">—</strong>
+    </div>
+    <div class="metric">
+      <small>MACD Histogram</small>
+      <strong id="macdValue">—</strong>
+    </div>
+  </div>
+</section>
+
+<section class="panel">
+  <h2>🕒 Таърихи сигналҳо</h2>
+  <div class="tablewrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Вақт</th>
+          <th>Ҷуфт</th>
+          <th>Самт</th>
+          <th>Муҳлат</th>
+          <th>Нарх</th>
+        </tr>
+      </thead>
+      <tbody id="history"></tbody>
+    </table>
+  </div>
+  <div class="buttons">
+    <button class="secondary" onclick="clearHistory()">
+      Пок кардани таърих
+    </button>
+  </div>
+</section>
+
+<section class="panel">
+  <p class="note">
+    ⚠️ Ин барнома воситаи таҳлили бозор аст,
+    на кафолати фоида. Сигналҳо барои
+    омӯзиш ва санҷиши демо пешниҳод мешаванд.
+    Барои Binary Options хатари аз даст додани
+    тамоми маблағи савдо вуҷуд дорад.
+  </p>
+</section>
+
+</main>
+
+<script>
+"use strict";
+
+let timer = null;
+let running = false;
+let busy = false;
+let scans = 0;
+let signals = 0;
+let lastSignalKey = "";
+let signalHistory = [];
+
+const $ = id => document.getElementById(id);
+
+function setStatus(message) {
+  $("status").textContent = message;
+}
+
+function updateStats() {
+  $("scannerState").textContent =
+    running ? "ON" : "OFF";
+  $("scannerState").className =
+    running ? "green" : "red";
+  $("scanCount").textContent = scans;
+  $("signalCount").textContent = signals;
+}
+
+function getPairName() {
+  return $("pair").selectedOptions[0].textContent;
+}
+
+function formatNumber(n, digits = 5) {
+  return Number.isFinite(n)
+    ? n.toFixed(digits)
+    : "—";
+}
+
+function emaSeries(values, period) {
+  if (values.length < period) return [];
+
+  const k = 2 / (period + 1);
+  const result = new Array(values.length).fill(null);
+
+  let sum = 0;
+  for (let i = 0; i < period; i++) {
+    sum += values[i];
+  }
+
+  let ema = sum / period;
+  result[period - 1] = ema;
+
+  for (let i = period; i < values.length; i++) {
+    ema = values[i] * k + ema * (1 - k);
+    result[i] = ema;
+  }
+
+  return result;
+}
+
+function calculateRSI(values, period = 14) {
+  if (values.length <= period) return null;
+
+  let gains = 0;
+  let losses = 0;
+
+  for (let i = 1; i <= period; i++) {
+    const diff = values[i] - values[i - 1];
+    gains += Math.max(diff, 0);
+    losses += Math.max(-diff, 0);
+  }
+
+  let avgGain = gains / period;
+  let avgLoss = losses / period;
+
+  for (let i = period + 1; i < values.length; i++) {
+    const diff = values[i] - values[i - 1];
+
+    avgGain =
+      (avgGain * (period - 1) + Math.max(diff, 0))
+      / period;
+
+    avgLoss =
+      (avgLoss * (period - 1) + Math.max(-diff, 0))
+      / period;
+  }
+
+  if (avgGain === 0 && avgLoss === 0) return 50;
+  if (avgLoss === 0) return 100;
+  if (avgGain === 0) return 0;
+
+  const rs = avgGain / avgLoss;
+  return 100 - 100 / (1 + rs);
+}
+
+function calculateMACD(values) {
+  if (values.length < 35) return null;
+
+  const fast = emaSeries(values, 12);
+  const slow = emaSeries(values, 26);
+
+  const macd = [];
+  for (let i = 25; i < values.length; i++) {
+    macd.push(fast[i] - slow[i]);
+  }
+
+  const signal = emaSeries(macd, 9);
+  const i = macd.length - 1;
+
+  if (signal[i] === null) return null;
+
+  return {
+    line: macd[i],
+    signal: signal[i],
+    histogram: macd[i] - signal[i]
+  };
+}
+
+function analyze(values) {
+  if (values.length < 60) {
+    throw new Error("Свечаҳо барои таҳлил каманд.");
+  }
+
+  const ema9 = emaSeries(values, 9);
+  const ema21 = emaSeries(values, 21);
+
+  const i = values.length - 1;
+
+  const fast = ema9[i];
+  const slow = ema21[i];
+  const rsi = calculateRSI(values);
+  const macd = calculateMACD(values);
+
+  if (
+    !Number.isFinite(fast) ||
+    !Number.isFinite(slow) ||
+    !Number.isFinite(rsi) ||
+    !macd
+  ) {
+    throw new Error("Индикаторҳо ҳисоб нашуданд.");
+  }
+
+  const bullish =
+    fast > slow &&
+    rsi > 52 &&
+    rsi < 70 &&
+    macd.histogram > 0;
+
+  const bearish =
+    fast < slow &&
+    rsi < 48 &&
+    rsi > 30 &&
+    macd.histogram < 0;
+
+  let direction = "WAIT";
+
+  if (bullish) direction = "CALL";
+  else if (bearish) direction = "PUT";
+
+  return {
+    direction,
+    ema9: fast,
+    ema21: slow,
+    rsi,
+    macd: macd.histogram,
+    price: values[i]
+  };
+}
+
+async function fetchCandles(symbol, key) {
+  const now = Math.floor(Date.now() / 1000);
+  const from = now - 4 * 60 * 60;
+
+  const params = new URLSearchParams({
+    symbol,
+    resolution: "1",
+    from: String(from),
+    to: String(now),
+    token: key
+  });
+
+  const url =
+    "https://finnhub.io/api/v1/forex/candle?"
+    + params.toString();
+
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    if (response.status === 401 ||
+        response.status === 403) {
+      throw new Error(
+        "API Key нодуруст аст ё дастрасӣ надорад."
+      );
+    }
+    if (response.status === 429) {
+      throw new Error(
+        "Лимити дархостҳои API тамом шуд."
+      );
+    }
+    throw new Error(
+      "Хатогии API: " + response.status
+    );
+  }
+
+  const data = await response.json();
+
+  if (data.s !== "ok" ||
+      !Array.isArray(data.c) ||
+      !Array.isArray(data.t)) {
+    throw new Error(
+      "Маълумоти Forex дастрас нест. " +
+      "Нақшаи API-ро санҷед."
+    );
+  }
+
+  const candles = data.t.map((time, i) => ({
+    time,
+    close: Number(data.c[i])
+  }));
+
+  // Свечаи ҳанӯз кушодаро истифода намебарем.
+  const currentMinute =
+    Math.floor(Date.now() / 60000) * 60;
+
+  const closed = candles.filter(c =>
+    c.time < currentMinute &&
+    Number.isFinite(c.close)
+  );
+
+  if (closed.length < 60) {
+    throw new Error(
+      "Свечаҳои пӯшида кофӣ нестанд."
+    );
+  }
+
+  const latest = closed[closed.length - 1];
+
+  // Агар маълумот кӯҳна бошад, сигнал надиҳем.
+  if (now - latest.time > 180) {
+    throw new Error(
+      "Маълумоти бозор кӯҳна аст. " +
+      "Сигнал дода намешавад."
+    );
+  }
+
+  return closed;
+}
+
+function updateIndicators(result) {
+  $("rsiValue").textContent =
+    formatNumber(result.rsi, 2);
+
+  $("emaValue").textContent =
+    formatNumber(result.ema9) + " / " +
+    formatNumber(result.ema21);
+
+  $("macdValue").textContent =
+    formatNumber(result.macd, 6);
+}
+
+function showSignal(result, pair, expiry, time) {
+  $("signalPair").textContent = pair;
+
+  const el = $("direction");
+  el.textContent = result.direction;
+
+  el.className = "direction " + (
+    result.direction === "CALL" ? "green" :
+    result.direction === "PUT" ? "red" :
+    "yellow"
+  );
+
+  $("signalInfo").textContent =
+    "Нарх: " + formatNumber(result.price) +
+    " | Муҳлат: " + expiry + " дақиқа";
+
+  $("signalTime").textContent =
+    new Date(time * 1000).toLocaleString();
+}
+
+function playAlert() {
+  try {
+    const AudioContextClass =
+      window.AudioContext ||
+      window.webkitAudioContext;
+
+    if (!AudioContextClass) return;
+
+    const ctx = new AudioContextClass();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = "sine";
+    osc.frequency.value = 880;
+
+    gain.gain.setValueAtTime(0.12, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(
+      0.001,
+      ctx.currentTime + 0.35
+    );
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start();
+    osc.stop(ctx.currentTime + 0.35);
+
+    osc.onended = () => ctx.close();
+  } catch (e) {
+    console.log("Audio unavailable");
+  }
+}
+
+function addHistory(item) {
+  signalHistory.unshift(item);
+  signalHistory = signalHistory.slice(0, 100);
+  renderHistory();
+}
+
+function renderHistory() {
+  const tbody = $("history");
+  tbody.replaceChildren();
+
+  for (const item of signalHistory) {
+    const tr = document.createElement("tr");
+
+    const values = [
+      new Date(item.time * 1000)
+        .toLocaleTimeString(),
+      item.pair,
+      item.direction,
+      item.expiry + "M",
+      formatNumber(item.price)
+    ];
+
+    for (const value of values) {
+      const td = document.createElement("td");
+      td.textContent = value;
+      tr.appendChild(td);
+    }
+
+    tbody.appendChild(tr);
+  }
+}
+
+function clearHistory() {
+  signalHistory = [];
+  renderHistory();
+}
+
+async function scanOnce() {
+  if (busy) return;
+
+  const key = $("apiKey").value.trim();
+  if (!key) {
+    setStatus("Аввал Finnhub API Key ворид кунед.");
+    return;
+  }
+
+  busy = true;
+  $("startBtn").disabled = true;
+
+  try {
+    setStatus("Свечаҳои Forex гирифта мешаванд...");
+
+    const symbol = $("pair").value;
+    const pair = getPairName();
+    const expiry = Number($("expiry").value);
+
+    const candles = await fetchCandles(symbol, key);
+    const closes = candles.map(c => c.close);
+    const latest = candles[candles.length - 1];
+
+    const result = analyze(closes);
+
+    scans++;
+    updateIndicators(result);
+    showSignal(result, pair, expiry, latest.time);
+
+    if (result.direction !== "WAIT") {
+      const uniqueKey = [
+        symbol,
+        expiry,
+        latest.time,
+        result.direction
+      ].join(":");
+
+      if (uniqueKey !== lastSignalKey) {
+        lastSignalKey = uniqueKey;
+        signals++;
+
+        addHistory({
+          time: Math.floor(Date.now() / 1000),
+          pair,
+          direction: result.direction,
+          expiry,
+          price: result.price
+        });
+
+        playAlert();
+      }
+
+      setStatus(
+        "Скан анҷом ёфт: " + result.direction +
+        " | " + pair
+      );
+    } else {
+      setStatus(
+        "Скан анҷом ёфт: сигнали мувофиқ нест (WAIT)."
+      );
+    }
+
+    updateStats();
+
+  } catch (error) {
+    setStatus("Хатогӣ: " + error.message);
+
+    $("direction").textContent = "WAIT";
+    $("direction").className = "direction yellow";
+    $("signalInfo").textContent =
+      "Сигнал дастрас нест.";
+
+  } finally {
+    busy = false;
+    $("startBtn").disabled = false;
+  }
+}
+
+function startScanner() {
+  if (running) return;
+
+  if (!$("apiKey").value.trim()) {
+    setStatus("Аввал API Key ворид кунед.");
+    return;
+  }
+
+  running = true;
+  updateStats();
+
+  scanOnce();
+
+  timer = setInterval(() => {
+    if (!busy) scanOnce();
+  }, Number($("interval").value));
+}
+
+function stopScanner() {
+  running = false;
+
+  if (timer) {
+    clearInterval(timer);
+    timer = null;
+  }
+
+  updateStats();
+  setStatus("Сканер боздошта шуд.");
+}
+
+$("pair").addEventListener("change", () => {
+  lastSignalKey = "";
+});
+
+$("expiry").addEventListener("change", () => {
+  lastSignalKey = "";
+});
+
+$("interval").addEventListener("change", () => {
+  if (running) {
+    stopScanner();
+    startScanner();
+  }
+});
+
+updateStats();
+</script>
+
+</body>
+</html>
+Binary-Auto-Scanner
